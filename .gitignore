@@ -1,0 +1,10 @@
+# Environment variables
+.env
+
+# Generated files
+*.log
+processed_ids.txt
+errored_ids.txt
+
+# Keep example file
+!.env.example
