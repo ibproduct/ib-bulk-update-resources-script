@@ -27,25 +27,68 @@ This script helps you update resources in IntelligenceBank by reading IDs from a
    eval "$(/opt/homebrew/bin/brew shellenv)"
    ```
 
-3. Install Python:
+3. Check Python installation:
+   ```
+   python3 --version
+   ```
+   If Python is not installed or you see an old version, install/update it:
    ```
    brew install python
    ```
+   If you see "python3 is already installed", that's fine - continue to the next step.
 
 4. Install pip:
+   First check if pip is already installed:
    ```
-   curl -O https://bootstrap.pypa.io/get-pip.py
-   python3 get-pip.py
+   pip3 --version
    ```
 
-5. Verify installations:
+   If pip is not found, install it using one of these methods:
+
+   Method 1 - Using easy_install:
+   ```
+   curl https://bootstrap.pypa.io/ez_setup.py -o ez_setup.py
+   python3 ez_setup.py
+   easy_install pip3
+   ```
+
+   Method 2 - If Method 1 fails with network errors:
+   ```
+   brew install python3-pip
+   ```
+
+   Method 3 - If both above methods fail:
+   ```
+   sudo python3 -m ensurepip --upgrade
+   sudo ln -s /usr/local/bin/pip3 /usr/local/bin/pip
+   ```
+
+   Important: On Mac, always use pip3 instead of pip. They are different:
+   - pip3 = Python 3.x package installer (what we need)
+   - pip = Python 2.x package installer (outdated, don't use)
+
+5. Add pip to your PATH (if needed):
+   ```
+   echo 'export PATH="$HOME/Library/Python/3.11/bin:$PATH"' >> ~/.zshrc
+   source ~/.zshrc
+   ```
+   Note: Replace 3.11 with your Python version from step 3.
+
+6. Verify installations:
    ```
    python3 --version
    pip3 --version
    ```
-   You should see version numbers for both.
-   
-   Note: On Mac, you'll need to use `python3` and `pip3` instead of `python` and `pip`. All commands in this guide use the `3` versions.
+   Both commands should show version numbers.
+
+7. If you get network errors:
+   Try these fixes:
+   - Check your internet connection
+   - Try using a different DNS:
+     ```
+     networksetup -setdnsservers Wi-Fi 8.8.8.8 8.8.4.4
+     ```
+   - If behind a corporate firewall, you may need to configure proxy settings
 
 ### 2. Download and Extract the Script
 1. Download this script package as a ZIP file
@@ -167,8 +210,9 @@ The script shows:
 
 2. "Module not found" errors:
    - Make sure you're in the correct folder
-   - Run the pip install command again:
-     Copy and paste: pip install -r requirements.txt
+   - Run the pip3 install command again:
+     Copy and paste: pip3 install -r requirements.txt
+   - If pip3 is not found, try closing and reopening your terminal
 
 3. Login errors:
    - Double-check your credentials in the .env file
