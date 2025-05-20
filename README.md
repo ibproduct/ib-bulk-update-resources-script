@@ -27,10 +27,25 @@ This script helps you update resources in IntelligenceBank by reading IDs from a
    eval "$(/opt/homebrew/bin/brew shellenv)"
    ```
 
-3. Install Python by copying and pasting this command:
+3. Install Python:
    ```
    brew install python
    ```
+
+4. Install pip:
+   ```
+   curl -O https://bootstrap.pypa.io/get-pip.py
+   python3 get-pip.py
+   ```
+
+5. Verify installations:
+   ```
+   python3 --version
+   pip3 --version
+   ```
+   You should see version numbers for both.
+   
+   Note: On Mac, you'll need to use `python3` and `pip3` instead of `python` and `pip`. All commands in this guide use the `3` versions.
 
 ### 2. Download and Extract the Script
 1. Download this script package as a ZIP file
@@ -84,7 +99,14 @@ These basic editors can cause formatting issues.
 ### 6. Install Required Packages
 
 In your terminal window, copy and paste this command:
-pip install -r requirements.txt
+```
+pip3 install -r requirements.txt
+```
+
+If you get a permissions error, try:
+```
+pip3 install --user -r requirements.txt
+```
 
 ### 7. Configure Your Settings
 
