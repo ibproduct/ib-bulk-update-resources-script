@@ -8,10 +8,57 @@ import time
 import os
 from datetime import datetime
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv, set_key
+from urllib.parse import urlencode
 
 # Load environment variables
 load_dotenv()
+
+async def login_to_ib():
+    """Login to IntelligenceBank and update .env with response values."""
+    # Get login credentials from environment
+    platform_url = os.getenv('PLATFORM_URL')
+    email = os.getenv('EMAIL')
+    password = os.getenv('PASSWORD')
+    api_v2_url = os.getenv('API_V2_URL')
+
+    if not all([platform_url, email, password, api_v2_url]):
+        logging.error("Missing login credentials. Please check your .env file.")
+        logging.error("Required variables: PLATFORM_URL, EMAIL, PASSWORD, API_V2_URL")
+        exit(1)
+
+    # Prepare login request
+    url = f"{api_v2_url}/webapp/1.0/login"
+    data = {
+        'p70': email,
+        'p80': password,
+        'p90': platform_url
+    }
+    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=urlencode(data), headers=headers, ssl=False) as response:
+                if response.status != 200:
+                    logging.error(f"Login failed with status {response.status}")
+                    exit(1)
+
+                login_data = await response.json()
+                
+                # Update .env file with response values
+                env_path = Path('.env')
+                set_key(env_path, 'API_V3_URL', login_data['apiV3url'])
+                set_key(env_path, 'CLIENT_ID', login_data['clientid'])
+                set_key(env_path, 'SID', login_data['sid'])
+                
+                logging.info("Successfully logged in and updated credentials")
+                
+                # Reload environment variables
+                load_dotenv()
+                
+    except Exception as e:
+        logging.error(f"Login failed: {str(e)}")
+        exit(1)
 
 # Configure logging
 logging.basicConfig(
@@ -38,12 +85,6 @@ if not all([API_V3_URL, CLIENT_ID, SID]):
 RATE_LIMIT = 600  # requests per minute
 BATCH_SIZE = 10   # concurrent requests
 RATE_LIMIT_PER_SECOND = RATE_LIMIT / 60
-
-# Headers for the request
-headers = {
-    'Content-Type': 'application/json',
-    'sid': SID
-}
 
 # Payload for the PUT request
 payload = {
@@ -102,6 +143,10 @@ class ResourceUpdater:
         self.error_count = 0
         self.session = None
         self.start_time = None
+        self.headers = {
+            'Content-Type': 'application/json',
+            'sid': os.getenv('SID')
+        }
 
     def _load_processed_ids(self):
         if self.processed_file.exists():
@@ -133,7 +178,19 @@ class ResourceUpdater:
                     f"Success: {self.success_count}, "
                     f"Errors: {self.error_count}")
 
-    async def update_resource(self, resource_id):
+    async def handle_401_error(self):
+        """Re-authenticate and update SID when session expires."""
+        try:
+            await login_to_ib()
+            # Update headers with new SID
+            self.headers['sid'] = os.getenv('SID')
+            logging.info("Successfully re-authenticated after 401 error")
+            return True
+        except Exception as e:
+            logging.error(f"Re-authentication failed: {str(e)}")
+            return False
+
+    async def update_resource(self, resource_id, retry_count=0):
         """Make PUT request to update a single resource."""
         if resource_id in self.processed_ids:
             logging.info(f"Skipping already processed Resource ID: {resource_id}")
@@ -147,13 +204,24 @@ class ResourceUpdater:
         url = f"{API_V3_URL}/api/3.0.0/{CLIENT_ID}/resource/{resource_id}?verbose=null"
         
         try:
-            async with self.session.put(url, headers=headers, json=payload, ssl=False) as response:
+            async with self.session.put(url, headers=self.headers, json=payload, ssl=False) as response:
                 response_text = await response.text()
                 if response.status == 200:
                     logging.info(f"Success - Resource ID: {resource_id} - Status: {response.status}")
                     self.success_count += 1
                     self._save_processed_id(resource_id)
                     return True
+                elif response.status == 401 and retry_count < 3:
+                    logging.info(f"Received 401 for Resource ID: {resource_id} - Attempting re-authentication")
+                    if await self.handle_401_error():
+                        # Retry the request with new SID
+                        return await self.update_resource(resource_id, retry_count + 1)
+                    else:
+                        error_msg = "Re-authentication failed"
+                        logging.error(f"Error - Resource ID: {resource_id} - {error_msg}")
+                        self.error_count += 1
+                        self._save_errored_id(resource_id)
+                        return False
                 else:
                     error_msg = f"Status Code: {response.status} - Response: {response_text}"
                     logging.error(f"Error - Resource ID: {resource_id} - {error_msg}")
@@ -225,6 +293,10 @@ class ResourceUpdater:
             )
 
 async def main():
+    # Login first to get/update credentials
+    await login_to_ib()
+    
+    # Then proceed with resource updates
     updater = ResourceUpdater()
     await updater.run()
 
