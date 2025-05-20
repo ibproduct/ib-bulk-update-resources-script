@@ -16,11 +16,21 @@ This script helps you update resources in IntelligenceBank by reading IDs from a
 #### Mac:
 1. Open Terminal (press Cmd + Space, type "Terminal", press Enter)
 2. Install Homebrew if you don't have it:
-   Copy and paste this entire command:
+   Copy and paste this command into Terminal:
+   ```
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+   
+   After installation completes, copy and paste these two commands:
+   ```
+   (echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> ~/.zprofile
+   eval "$(/opt/homebrew/bin/brew shellenv)"
+   ```
 
 3. Install Python by copying and pasting this command:
+   ```
    brew install python
+   ```
 
 ### 2. Download and Extract the Script
 1. Download this script package as a ZIP file
